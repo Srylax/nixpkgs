@@ -1,61 +1,60 @@
 {
   fetchFromGitHub,
   buildGoModule,
-  jq,
-  buildNpmPackage,
+  stdenvNoCC,
+  pnpm,
+  nodejs,
   lib,
-  makeWrapper,
-}:
-
-let
-  version = "0.13.2";
+}: let
+  version = "0.24.3";
   src = fetchFromGitHub {
     owner = "usememos";
     repo = "memos";
-    rev = "v${version}";
-    hash = "sha256-lcOZg5mlFPp04ZCm5GDhQfSwE2ahSmGhmdAw+pygK0A=";
+    rev = "2a92baf52c8f2e27c5fa4ad98a8b095b50b43601";
+    hash = "sha256-7lTRCTOXOPmv4DMA+mGqGr9FoRZRZ8Kgb+S57QmfqNw=";
   };
 
-  frontend = buildNpmPackage {
+  frontend = stdenvNoCC.mkDerivation (finalAttrs: {
     pname = "memos-web";
-    inherit version;
+    inherit version src;
+    pnpmDeps = pnpm.fetchDeps {
+      inherit (finalAttrs) pname version src;
+      sourceRoot = "${finalAttrs.src.name}/web";
+      hash = "sha256-ooiH13yzMTCSqzmZVvVy2jWoIfJecMlE6JkwcG5EV5k=";
+    };
 
-    src = "${src}/web";
-
-    npmDepsHash = "sha256-36UcHE98dsGvYQWLIc/xgP8Q0IyJ7la0Qoo3lZqUcmw=";
-
-    postPatch = ''
-      cp ${./package-lock.json} package-lock.json
+    buildPhase = ''
+      runHook preBuild
+      pnpm -C web exec vite build --mode release --outDir=$out --emptyOutDir
+      runHook postBuild
     '';
-
-    installPhase = ''
-      cp -r dist $out
-    '';
-  };
+    pnpmRoot = "web";
+    nativeBuildInputs = [
+      nodejs
+      pnpm.configHook
+    ];
+  });
 in
-buildGoModule {
-  pname = "memos";
-  inherit version src;
+  buildGoModule {
+    pname = "memos";
+    inherit version src;
 
-  # check will unable to access network in sandbox
-  doCheck = false;
-  vendorHash = "sha256-UM/xeRvfvlq+jGzWpc3EU5GJ6Dt7RmTbSt9h3da6f8w=";
+    vendorHash = "sha256-SWpnsTdti3hD1alvItpXllTJHGxeKP8q7WD2nBzFG7o=";
 
-  # Inject frontend assets into go embed
-  prePatch = ''
-    rm -rf server/dist
-    cp -r ${frontend} server/dist
-  '';
+    # Inject frontend assets into go build
+    prePatch = ''
+      rm -rf server/router/frontend/dist
+      cp -r ${frontend} server/router/frontend/dist
+    '';
 
-  passthru = {
-    updateScript = ./update.sh;
-  };
-
-  meta = with lib; {
-    homepage = "https://usememos.com";
-    description = "Lightweight, self-hosted memo hub";
-    maintainers = with maintainers; [ indexyz ];
-    license = licenses.mit;
-    mainProgram = "memos";
-  };
-}
+    meta = with lib; {
+      homepage = "https://usememos.com";
+      description = "Lightweight, self-hosted memo hub";
+      maintainers = with maintainers; [
+        indexyz
+        Srylax
+      ];
+      license = licenses.mit;
+      mainProgram = "memos";
+    };
+  }
