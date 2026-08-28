@@ -23,7 +23,7 @@ let
 
     aarch64-linux = fetchurl {
       url = "https://github.com/smallstep/step-agent-plugin/releases/download/v${version}/step-agent_${version}_linux_arm64.tar.gz";
-      sha256 = "sha256-0Vefuc+Xnx8x6Gu+WuS4zTHDIMepY593uFi3JKD+hrk=";
+      sha256 = "sha256-BkEtYBV5yrtBpZDj+Q1OYSRCYzxGO741h/q/cvq3c7E=";
     };
   };
 in
